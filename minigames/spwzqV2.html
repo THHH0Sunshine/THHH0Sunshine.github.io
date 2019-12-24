@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8"/>
+  <title>spwzqV2</title>
+  <script>
+    var context = {
+      R: 15,
+      C: 15,
+      computerThinkTime: 500,
+      mapc: null,
+      lines: null,
+      map: null,
+      dialogStart: null,
+      first: false,
+      isMyTurn: false,
+      init: function() {
+        this.mapc = document.getElementById('mapc')
+        this.dialogStart = document.getElementById('dialog-start')
+        this.newMap()
+      },
+      newMap: function() {
+        if (this.lines)
+          this.mapc.removeChild(this.lines)
+        if (this.map)
+          this.mapc.removeChild(this.map)
+        this.lines = document.createElement('table')
+        this.lines.className = 'lines'
+        for (var r = 0; r < this.R - 1; r++) {
+          var tr = this.lines.insertRow()
+          for (var c = 0; c < this.C - 1; c++)
+            tr.insertCell()
+        }
+        this.mapc.appendChild(this.lines)
+        this.map = document.createElement('table')
+        this.map.id = 'map'
+        for (var r = 0; r < this.R; r++) {
+          var tr = this.map.insertRow()
+          for (var c = 0; c < this.C; c++) {
+            var td = tr.insertCell()
+            td.r = r
+            td.c = c
+            td.p = 0
+            td.className = 'map-item-none'
+            td.onclick = function(e) { context.mapClicked(e) }
+          }
+        }
+        this.mapc.appendChild(this.map)
+      },
+      startGame: function(first) {
+        this.dialogStart.style.display = 'none'
+        this.first = first
+        this.setIsMyTurn(first)
+      },
+      setIsMyTurn: function(b) {
+        this.isMyTurn = b
+        if (b) {
+          this.map.className = this.first ? 'map-black' : 'map-white'
+        } else {
+          this.map.className = 'map-none'
+          setTimeout(function() { context.doAI() }, this.computerThinkTime)
+        }
+      },
+      getMapItem: function(r, c) {
+        return this.map.rows[r].cells[c]
+      },
+      downAt: function(r, c, p, ban) {
+        var pos = this.getMapItem(r, c)
+        if (pos.p)
+          return
+        var win = false
+        var openThrees = 0
+        for (var i = 0; i < 4; i++) {
+          var left = this.getLineType(r, c, -this.drc[i][0], -this.drc[i][1], p)
+          var right = this.getLineType(r, c, this.drc[i][0], this.drc[i][1], p)
+          if (left.near + right.near == 4) {
+            win = true
+            break
+          }
+          if (ban && (left.near + right.near > 4 || p == 1 && this.hasOpenThree(left, right) && ++openThrees == 2))
+            return
+        }
+        pos.p = p
+        switch (p) {
+          case -1:
+            pos.className = 'map-item-white'
+            break
+          case 0:
+            pos.className = 'map-item-none'
+            break
+          case 1:
+            pos.className = 'map-item-black'
+            break
+        }
+        if (win)
+          this.win(p)
+        else
+          this.setIsMyTurn(!this.isMyTurn)
+      },
+      mapClicked: function(e) {
+        if (!this.isMyTurn)
+          return
+        this.downAt(e.target.r, e.target.c, this.first ? 1 : -1, true)
+      },
+      hasOpenThree: function(left, right) {
+        return left.total + right.total == 2 &&
+          left.stop != 1 &&
+          right.stop != 1 &&
+          (left.stop == 3 || right.stop == 3) &&
+          (left.stop != 2 || left.near == left.total) &&
+          (right.stop != 2 || right.near == right.total)
+      },
+      getLineType: function(r, c, dr, dc, p) {
+        var rt = {
+          near: 0,
+          total: 0,
+          stop: -1,
+          limit: 0
+        }
+        var skip = false
+        while (1) {
+          r += dr
+          c += dc
+          if (r < 0 || c < 0 || r >= this.R || c >= this.C || this.getMapItem(r, c).p == -p) {
+            if (skip)
+              rt.stop = 2
+            else {
+              rt.stop = 1
+              rt.near = rt.total
+            }
+            break
+          } else if (!this.getMapItem(r, c).p) {
+            if (skip) {
+              rt.stop = 3
+              while (1) {
+                r += dr
+                c += dc
+                if (r < 0 || c < 0 || r >= this.R || c >= this.C || this.getMapItem(r, c).p == -p)
+                  break
+                rt.limit++
+              }
+              break
+            } else {
+              skip = true
+              rt.near = rt.total
+            }
+          } else
+            rt.total++
+          rt.limit++
+        }
+        return rt
+      },
+      drc: [
+        [ 0, 1 ],
+        [ 1, 0 ],
+        [ 1, 1 ],
+        [ -1, 1 ]
+      ],
+      getK: function(r, c, p) {
+        if (this.getMapItem(r, c).p)
+            return -10000
+        var rt = 0
+        var openThrees = 0
+        for (var i = 0; i < 4; i++) {
+          var left = this.getLineType(r, c, -this.drc[i][0], -this.drc[i][1], p)
+          var right = this.getLineType(r, c, this.drc[i][0], this.drc[i][1], p)
+          if (left.near + right.near > 4)
+            return -10000
+          if (left.near + right.near == 4)
+            return 10000
+          var o3 = this.hasOpenThree(left, right)
+          if (p == 1 && o3 && ++openThrees == 2)
+            return -10000
+          if (left.near + right.near == 3 &&
+            left.total + right.total == 3 &&
+            left.stop == 3 &&
+            right.stop == 3) {
+            rt += 2600
+          } else if (left.limit + right.limit >= 4) {
+            if (left.total + right.total == 3) {
+              if (left.near == left.total || right.near == right.total)
+                rt += 1200
+              else
+                rt += 1000
+            } else if (o3) {
+              rt += 1000;
+            } else {
+              var d = i > 1 ? -5 : 0;
+              if (left.near > 0)
+                rt += 10 + d
+              if (right.near > 0)
+                rt += 10 + d
+              if (left.total + right.total == 2)
+                rt += 300
+              else if (left.total + right.total == 1)
+                rt += 50
+            }
+          }
+        }
+        for (var i = 0; i < 4; i++) {
+          var oleft = this.getLineType(r, c, -this.drc[i][0], -this.drc[i][1], -p)
+          var oright = this.getLineType(r, c, this.drc[i][0], this.drc[i][1], -p)
+          if (oleft.near + oright.near == 4)
+            return 9000
+          if (oleft.limit + oright.limit >= 4) {
+            if (oleft.near + oright.near == 3) {
+              if (oleft.stop != 1 && oright.stop != 1)
+                rt += 2500
+              else
+                rt += 1500
+            } else {
+              var d = i > 1 ? -5 : 0
+              if (oleft.near > 0)
+                rt += 10 + d
+              if (oright.near > 0)
+                rt += 10 + d
+              rt += 100 * (oleft.total + oright.total)
+            }
+          }
+        }
+        return rt
+      },
+      doAI: function() {
+        var me = this.first ? 1 : -1
+        var list = []
+        var max = -10000
+        var count = 0
+        for (var i = 0; i < this.R; i++)
+          for (var j = 0; j < this.C; j++) {
+            var k = this.getK(i, j, -me)
+            if (k == max) {
+              list.push([i, j])
+            } else if (k > max) {
+              max = k
+              list = []
+              list.push([i, j])
+            }
+            if (!this.getMapItem(i, j).p)
+              count++
+          }
+        var down = count == this.R * this.C ?
+          [Math.floor(this.R / 2), Math.floor(this.C / 2)] :
+          list[Math.floor(Math.random() * list.length)]
+        this.downAt(down[0], down[1], -me, false)
+      },
+      win: function(p) {
+        alert(p == 1 ? 'BLACK WON' : 'WHITE WON')
+        this.newMap()
+        this.dialogStart.style.display = 'block'
+      }
+    }
+  </script>
+  <style>
+    #mapc {
+      position: relative;
+      display: inline-block;
+      background-color: wheat;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 5px gray;
+    }
+
+    .lines {
+      border-collapse: collapse;
+    }
+
+    .lines td {
+      width: 30px;
+      height: 30px;
+      min-width: 30px;
+      min-height: 30px;
+      border: 2px solid black;
+    }
+
+    .lines span {
+      background-color: black;
+    }
+
+    #map {
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      border-collapse: collapse;
+    }
+
+    #map td {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      transform: scale(0.7, 0.7);
+    }
+
+    .map-black .map-item-none:hover {
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .map-white .map-item-none:hover {
+      background-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .map-item-black {
+      background-color: black;
+    }
+
+    .map-item-white {
+      background-color: white;
+    }
+
+    .over-container {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      background: rgba(200, 200, 200, 0.8);
+    }
+
+    .over {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 10px;
+      background-color: rgb(255, 243, 219);
+      box-shadow: 0 0 5px gray;
+      padding: 2%;
+    }
+
+    .over-choose-title {
+      text-align: center;
+    }
+
+    .over-choose-container {
+      height: 100%;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .over-choose-item {
+      height: 32vmin;
+      width: 32vmin;
+      margin: 30px;
+      border-radius: 50%;
+      box-shadow: 0 0 4px gray;
+      transition: background-color 0.2s;
+    }
+
+    .over-choose-black {
+      background-color: black;
+    }
+
+    .over-choose-black:hover {
+      background-color: #666666;
+    }
+
+    .over-choose-white {
+      background-color: white;
+    }
+
+    .over-choose-white:hover {
+      background-color: #dddddd;
+    }
+  </style>
+</head>
+<body onload="context.init()">
+  <div>
+    <div id="mapc"></div>
+  </div>
+  <div id="dialog-start" class="over-container">
+    <div class="over">
+      <div class="over-choose-title">START GAME</div>
+      <div class="over-choose-container">
+        <div class="over-choose-item over-choose-black" onclick="context.startGame(true)"></div>
+        <div class="over-choose-item over-choose-white" onclick="context.startGame(false)"></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

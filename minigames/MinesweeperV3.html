@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta charset="utf-8"/>
+    <title>MinesweeperV3</title>
+    <script>
+      var H=false;
+      var LIVES=1;
+      var EZS=true;
+      var X=9;
+      var Y=9;
+      var N=10;
+      var map;
+      var lives;
+      var ended;
+      var first;
+      var action=true;
+      var dis;
+      var boo;
+      var nleft;
+      var mdown=false;
+      function getSearchObj()
+      {
+        var rt={};
+        var ss=location.search.substr(1).split('&');
+        for(var i=0;i<ss.length;i++)
+        {
+          var ind=ss[i].indexOf('=');
+          if(ind<0)continue;
+          rt[ss[i].substring(0,ind)]=decodeURIComponent(ss[i].substr(ind+1));
+        }
+        return rt;
+      }
+      function changeAction(e)
+      {
+        action=!action;
+        e.target.innerHTML=action?'Mouse Reversal:off':'Mouse Reversal:on';
+      }
+      function setnum(td,num)
+      {
+        if(num==-3||num==-4)td.style.background='#FF0000';
+        else if(num==11)td.style.background='#808080';
+        else if(num==-1||num==-2||num==9||num==10)td.style.background='#D0D0D0';
+        else td.style.background='#E8E8E8';
+        if(num==8||num<0)td.style.color='#000000';
+        if(num>=1&&num<=8)td.innerHTML=num;
+        switch(num)
+        {
+        case -1:
+          td.innerHTML='*';
+          break;
+        case -2:
+          td.innerHTML='X';
+          break;
+        case -3:
+          td.innerHTML='@';
+          break;
+        case 0:
+          td.innerHTML=' ';
+          break;
+        case 1:
+          td.style.color='#0000FF';
+          break;
+        case 2:
+          td.style.color='#00FF00';
+          break;
+        case 3:
+          td.style.color='#FF0000';
+          break;
+        case 4:
+          td.style.color='#000080';
+          break;
+        case 5:
+          td.style.color='#800000';
+          break;
+        case 6:
+          td.style.color='#008080';
+          break;
+        case 7:
+          td.style.color='#008000';
+          break;
+        case 9:
+          td.innerHTML=' ';
+          break;
+        case 10:
+          td.innerHTML='!';
+          td.style.color='#FF0000';
+        }
+      }
+      function end(win)
+      {
+        ended=true;
+        document.getElementById('ct').innerHTML='0';
+        document.getElementById('hj').innerHTML=win?'win':'lose';
+        if(win)
+        {
+          for(var i=1;i<=X;i++)
+          {
+            for(var j=1;j<=Y;j++)
+            {
+              if(boo[i][j])setnum(map.rows[i-1].cells[j-1],-1);
+            }
+          }
+        }
+        else
+        {
+          for(var i=1;i<=X;i++)
+          {
+            for(var j=1;j<=Y;j++)
+            {
+              if(boo[i][j])
+              {
+                var td=map.rows[i-1].cells[j-1];
+                if(dis[i][j]==3)setnum(td,-3);
+                else setnum(td,-1);
+              }
+              else if(dis[i][j]==-1)setnum(map.rows[i-1].cells[j-1],-2);
+            }
+          }
+        }
+      }
+      function dig(x,y)
+      {
+        var n=boo[x][y-1]+boo[x-1][y]+boo[x+1][y]+boo[x][y+1];
+        if(!H||y%2==1)n+=(boo[x-1][y-1]+boo[x-1][y+1]);
+        if(!H||y%2==0)n+=(boo[x+1][y-1]+boo[x+1][y+1]);
+        dis[x][y]=n?1:2;
+        setnum(map.rows[x-1].cells[y-1],n);
+        if(!n)
+        {
+          if(x!=1)
+          {
+            if(!H||y%2==1)
+            {
+              if(y!=1&&dis[x-1][y-1]<1)dig(x-1,y-1);
+              if(y!=Y&&dis[x-1][y+1]<1)dig(x-1,y+1);
+            }
+            if(dis[x-1][y]<1)dig(x-1,y);
+          }
+          if(x!=X)
+          {
+            if(!H||y%2==0)
+            {
+              if(y!=1&&dis[x+1][y-1]<1)dig(x+1,y-1);
+              if(y!=Y&&dis[x+1][y+1]<1)dig(x+1,y+1);
+            }
+            if(dis[x+1][y]<1)dig(x+1,y);
+          }
+          if(y!=1&&dis[x][y-1]<1)dig(x,y-1);
+          if(y!=Y&&dis[x][y+1]<1)dig(x,y+1);
+        }
+      }
+      function click(x,y,e)
+      {
+        if(ended||dis[x][y]>0)return;
+        if(dis[x][y]==-1)
+        {
+          dis[x][y]=0;
+          setnum(map.rows[x-1].cells[y-1],9);
+          nleft++;
+          document.getElementById('ct').innerHTML=nleft;
+          return;
+        }
+        if((action&&e.button==2||!action&&!e.button)&&dis[x][y]==0)
+        {
+          dis[x][y]=-1;
+          setnum(map.rows[x-1].cells[y-1],10);
+          nleft--;
+          document.getElementById('ct').innerHTML=nleft;
+          return;
+        }
+        if(first)
+        {
+          first=false;
+          var a=0;
+          while(a<N)
+          {
+            var _x=parseInt(Math.random()*X+1);
+            var _y=parseInt(Math.random()*Y+1);
+            if(EZS&&Math.abs(_x-x)<=1&&Math.abs(_y-y)<=1||_x==x&&_y==y)continue;
+            if(boo[_x][_y])continue;
+            boo[_x][_y]=true;
+            a++;
+          }
+        }
+        if(boo[x][y])
+        {
+          if(lives>0)lives--;
+          if(!lives)
+          {
+            dis[x][y]=3;
+            end(false);
+          }
+          else
+          {
+            setnum(map.rows[x-1].cells[y-1],-4);
+            alert('lives--');
+          }
+          return;
+        }
+        dig(x,y);
+        var win=true;
+        for(var i=1;i<=X;i++)
+        {
+          for(var j=1;j<=Y;j++)
+          {
+            if(dis[i][j]<1&&!boo[i][j]){win=false;break;}
+          }
+          if(!win)break;
+        }
+        if(win)end(true);
+      }
+      function mUp(e)
+      {
+        if(!mdown)return;
+        mdown=false;
+        click(e.target.x,e.target.y,e);
+      }
+      function mDown(e)
+      {
+        if(!ended&&(!dis[e.target.x][e.target.y]||dis[e.target.x][e.target.y]==-1))
+        {
+          mdown=true;
+          if(!dis[e.target.x][e.target.y]&&(action&&!e.button||!action&&e.button==2))setnum(e.target,11);
+        }
+      }
+      function mOut(e)
+      {
+        if(mdown)
+        {
+          mdown=false;
+          if(!dis[e.target.x][e.target.y])setnum(e.target,9);
+        }
+      }
+      function resetMap()
+      {
+        lives=LIVES;
+        ended=false;
+        first=true;
+        nleft=N;
+        document.getElementById('ct').innerHTML=nleft;
+        document.getElementById('hj').innerHTML='restart';
+        for(var i=0;i<X+2;i++)for(var j=0;j<Y+2;j++){dis[i][j]=0;boo[i][j]=false;}
+        for(var x=0;x<X;x++)
+        {
+          var tr=map.rows[x];
+          for(var y=0;y<Y;y++)
+          {
+            setnum(tr.cells[y],9);
+          }
+        }
+      }
+      function newMap()
+      {
+        map=document.createElement('table');
+        map.id='map';
+        for(var x=1;x<=X;x++)
+        {
+          var tr=map.insertRow();
+          for(var y=1;y<=Y;y++)
+          {
+            var td=tr.insertCell();
+            td.x=x;
+            td.y=y;
+            td.onmouseup=mUp;
+            td.onmousedown=mDown;
+            td.onmouseout=mOut;
+            if(H&&y%2==0)td.className='evencol';
+          }
+        }
+        document.getElementById('mapc').appendChild(map);
+        dis=new Array(X+2);
+        boo=new Array(X+2);
+        for(var i=0;i<X+2;i++)
+        {
+          dis[i]=new Array(Y+2);
+          boo[i]=new Array(Y+2);
+        }
+        resetMap();
+      }
+      function deleteMap()
+      {
+        document.getElementById('mapc').removeChild(map);
+      }
+      function changeMap(x,y,n)
+      {
+        X=x;
+        Y=y;
+        N=n;
+        deleteMap();
+        newMap();
+      }
+      function dialog(id)
+      {
+        var dialog=document.getElementById(id);
+        dialog.style.display=dialog.style.display=='flex'?'none':'flex';
+      }
+      function custom()
+      {
+        var xi=parseInt(document.getElementById('xi').value);
+        if(!(xi>0&&xi<=128)){alert('height must be > 0 and <= 128');return;}
+        var yi=parseInt(document.getElementById('yi').value);
+        if(!(yi>0&&yi<=128)){alert('width must be > 0 and <= 128');return;}
+        var ni=parseInt(document.getElementById('ni').value);
+        if(!(ni>0&&ni<=xi*yi-9)){alert('number must be > 0 and <= height*width-9');return;}
+        changeMap(xi,yi,ni);
+      }
+      function init()
+      {
+        var so=getSearchObj();
+        if(so.hex)H=true;
+        if(so.lives)LIVES=Math.max(parseInt(so.lives),1);
+        if(so.inflives)LIVES=-1;
+        if(so.noezstart)EZS=false;
+        document.oncontextmenu=function(e){e.preventDefault();};
+        newMap();
+      }
+    </script>
+    <style>
+      body
+      {
+        margin:0;
+      }
+      span
+      {
+        -webkit-user-select:none;
+        -moz-user-select:none;
+        -o-user-select:none;
+        user-select:none;
+        cursor:default;
+      }
+      button
+      {
+        font-weight:bold;
+        -webkit-user-select:none;
+        -moz-user-select:none;
+        -o-user-select:none;
+        user-select:none;
+      }
+      td
+      {
+        height:20px;
+        min-width:20px;
+        border:1px solid #808080;
+        text-align:center;
+        font-weight:bold;
+        -webkit-user-select:none;
+        -moz-user-select:none;
+        -o-user-select:none;
+        user-select:none;
+        cursor:default;
+      }
+      @media screen and (max-width:600px)
+      {
+        td
+        {
+          height:30px;
+          min-width:30px;
+          font-size:150%;
+        }
+      }
+      .theme
+      {
+        background-color:pink;
+      }
+      .bar
+      {
+        position:fixed;
+        left:0;
+        right:0;
+        top:0;
+        height:24px;
+        padding:8px;
+        display:flex;
+        justify-content:space-between;
+      }
+      .inbar
+      {
+        background-color:white;
+        padding:2px;
+      }
+      @media screen and (max-width:600px)
+      {
+        .bar
+        {
+          height:36px;
+        }
+        .inbar
+        {
+          font-size:150%;
+        }
+      }
+      .evencol
+      {
+        position:relative;
+        top:10px;
+      }
+      .dialog
+      {
+        position:fixed;
+        left:20%;
+        right:20%;
+        top:20%;
+        bottom:20%;
+        display:none;
+        flex-direction:column;
+      }
+      .dtitle
+      {
+        min-height:24px;
+        display:flex;
+        justify-content:space-between;
+      }
+      .redbutton
+      {
+        outline-style:none;
+        border-style:none;
+      }
+      .redbutton:hover
+      {
+        background-color:red;
+        color:white;
+      }
+      .redbutton:active
+      {
+        background-color:#FF4848;
+      }
+      .dcontent
+      {
+        border:1px solid black;
+        overflow:auto;
+      }
+      .ditem
+      {
+        width:75%;
+        background-color:#e8e8e8;
+        margin:8px auto;
+        border-radius:8px;
+        padding:20px;
+        display:flex;
+        flex-direction:column;
+      }
+      #mapc
+      {
+        margin:48px 8px 8px 8px;
+        overflow:auto;
+      }
+      @media screen and (max-width:600px)
+      {
+        #mapc
+        {
+          margin-top:60px;
+        }
+      }
+      #map
+      {
+        border:3px solid black;
+        border-collapse:collapse;
+      }
+    </style>
+  </head>
+  <body onload="init()">
+    <div class="bar theme">
+      <button id="hj" onclick="resetMap()">restart</button>
+      <span id="ct" class="inbar"></span>
+      <button onclick="changeAction(event)">Mouse Reversal:off</button>
+      <button onclick="dialog('settings')">settings...</button>
+    </div>
+    <div id="mapc">
+    </div>
+    <div id="settings" class="dialog">
+      <div class="dtitle theme">
+        <span>settings</span>
+        <button class="redbutton theme" onclick="dialog('settings')">x</button>
+      </div>
+      <div class="dcontent">
+        <div class="ditem">
+          <button onclick="changeMap(9,9,10)">easy</button>
+          <button onclick="changeMap(16,16,40)">normal</button>
+          <button onclick="changeMap(16,30,99)">hard</button>
+          <button onclick="changeMap(100,100,2500)">extreme</button>
+        </div>
+        <div class="ditem">
+          <button onclick="custom()">custom:</button>
+          <span>height:</span>
+          <input id="xi" type="number"></input>
+          <span>width:</span>
+          <input id="yi" type="number"></input>
+          <span>number:</span>
+          <input id="ni" type="number"></input>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

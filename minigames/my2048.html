@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="utf-8"/>
+  <title>2048</title>
+  <script>
+    var colormaps = {
+      green: {
+        background: (l2) => l2 ? 'rgb(' + 0 + ',' + Math.round(255 * (11 - l2) / 10) + ',' + 0 + ')' : '',
+        foreground: (l2) => l2 > 3 ? 'white' : '',
+      },
+      transparent: {
+        background: (l2) => '',
+        foreground: (l2) => '',
+      },
+    }
+    var context = {
+      row: 4,
+      col: 4,
+      startnum: 2,
+      zero: ' ',
+      map: null,
+      spaces: 0,
+      ended: false,
+      mdownpos: null,
+      colormap: colormaps.green,
+      init() {
+        var container = document.getElementById('container')
+        var table = document.createElement('table')
+        this.map = new Array(this.row)
+        this.spaces = this.row * this.col
+        for (var i = 0; i < this.row; i++) {
+          this.map[i] = new Array(this.col)
+          var tr = document.createElement('tr')
+          for (var j = 0; j < this.col; j++) {
+            var td = document.createElement('td')
+            this.setnum(td, this.zero)
+            this.map[i][j] = td
+            tr.appendChild(td)
+          }
+          table.appendChild(tr)
+        }
+        table.onmousedown = (e) => this.mdown(e)
+        table.onmouseup = (e) => this.mup(e)
+        table.onmouseleave = () => this.mleave()
+        table.addEventListener('touchstart', (e) => this.mdown(e.touches[0]))
+        table.addEventListener('touchend', (e) => this.mup(e.changedTouches[0]))
+        table.addEventListener('touchcancel', () => this.mleave())
+        container.appendChild(table)
+      },
+      clear() {
+        this.ended = false
+        for (var i = 0; i < this.row; i++)
+          for (var j = 0; j < this.col; j++)
+            this.setnum(this.map[i][j], this.zero)
+        this.spaces = this.row * this.col
+      },
+      check() {
+        if (this.spaces)
+          return false
+        for (var i = 0; i < this.row; i++)
+          for (var j = 0; j < this.col; j++)
+            if (i != this.row - 1 && this.map[i][j].innerHTML == this.map[i + 1][j].innerHTML || j != this.col - 1 && this.map[i][j].innerHTML == this.map[i][j + 1].innerHTML)
+              return false
+        return true
+      },
+      generate() {
+        var num = (Math.floor(Math.random() * 2) + 1) * 2
+        var ind = 0
+        var t = Math.floor(Math.random() * this.spaces) + 1
+        this.spaces--
+        for (var i = 0; i < this.row; i++)
+          for (var j = 0; j < this.col; j++)
+            if (this.map[i][j].innerHTML == this.zero) {
+              ind++
+              if (ind == t) {
+                this.setnum(this.map[i][j], num)
+                if (this.check()) {
+                  this.ended = true
+                  alert('GAME OVER')
+                }
+                return
+              }
+            }
+      },
+      setnum(obj, num) {
+        obj.innerHTML = num
+        if (num == this.zero) {
+          num = 0
+        } else {
+          num = Math.log2(num)
+        }
+        obj.style.backgroundColor = this.colormap.background(num)
+        obj.style.color = this.colormap.foreground(num)
+      },
+      sort(arr) {
+        var oa = new Array(arr.length)
+        for (var n = 0; n < arr.length; n++)
+          oa[n] = arr[n].innerHTML
+        var i = 0
+        var tmp = 0
+        for (var j = 0; j < arr.length; j++) {
+          if (arr[j].innerHTML != this.zero) {
+            if (!tmp) {
+              tmp = arr[j].innerHTML
+            } else if (tmp == arr[j].innerHTML) {
+              this.setnum(arr[i++], tmp * 2)
+              tmp = 0
+              this.spaces++
+            } else {
+              this.setnum(arr[i++], tmp)
+              tmp = arr[j].innerHTML
+            }
+          }
+        }
+        if (tmp)
+          this.setnum(arr[i++], tmp)
+        for (; i < arr.length; i++)
+          this.setnum(arr[i], this.zero)
+        for (var n = 0; n < arr.length; n++)
+          if (arr[n].innerHTML != oa[n])
+            return true
+        return false
+      },
+      start() {
+        for (var i = 0; i < this.startnum; i++)
+          this.generate()
+      },
+      left() {
+        var gen = false
+        for (var i = 0; i < this.row; i++)
+          if(this.sort(this.map[i]))
+            gen = true
+        if (gen)
+          this.generate()
+      },
+      top() {
+        var gen = false
+        for (var i = 0; i < this.col; i++) {
+          var arr = new Array(this.row)
+          for (var j = 0; j < this.row; j++)
+            arr[j] = this.map[j][i]
+          if(this.sort(arr))
+            gen = true
+        }
+        if (gen)
+          this.generate()
+      },
+      bottom() {
+        var gen = false
+        for (var i = 0; i < this.col; i++) {
+          var arr = new Array(this.row)
+          for (var j = 0; j < this.row; j++)
+            arr[j] = this.map[this.row - j - 1][i]
+          if(this.sort(arr))
+            gen = true
+        }
+        if (gen)
+          this.generate()
+      },
+      right() {
+        var gen = false
+        for (var i = 0; i < this.row; i++)
+          if(this.sort(this.map[i].slice(0).reverse()))
+            gen = true
+        if (gen)
+          this.generate()
+      },
+      restart() {
+        this.clear()
+        this.start()
+      },
+      mdown(e) {
+        if (!this.ended)
+          this.mdownpos = { x: e.clientX, y: e.clientY }
+      },
+      mup(e) {
+        if (this.mdownpos) {
+          var x = e.clientX - this.mdownpos.x
+          var y = e.clientY - this.mdownpos.y
+          var d = Math.abs(x) - Math.abs(y)
+          if (d > 0) {
+            if (x < 0)
+              this.left()
+            else if (x > 0)
+              this.right()
+          } else if (d < 0) {
+            if (y < 0)
+              this.top()
+            else if (y > 0)
+              this.bottom()
+          }
+        }
+      },
+      mleave() {
+        this.mdownpos = null
+      },
+      color(colormap) {
+        this.colormap = colormap
+        for (var i = 0; i < this.row; i++)
+          for (var j = 0; j < this.col; j++)
+            this.setnum(this.map[i][j], this.map[i][j].innerHTML)
+      },
+    }
+  </script>
+  <style>
+    body {
+      overflow: hidden;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      height: 40px;
+    }
+    #container {
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -o-user-select: none;
+      user-select: none;
+    }
+    #container table {
+      border-collapse: collapse;
+    }
+    #container td {
+      width: 60px;
+      height: 60px;
+      border: 2px solid black;
+      text-align: center;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <button onclick="context.restart()">RESTART</button>
+  </div>
+  <div id="container"></div>
+  <script>
+    context.init()
+    context.start()
+  </script>
+</body>
