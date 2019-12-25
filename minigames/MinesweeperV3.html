@@ -299,9 +299,9 @@
       function custom()
       {
         var xi=parseInt(document.getElementById('xi').value);
-        if(!(xi>0&&xi<=128)){alert('height must be > 0 and <= 128');return;}
+        if(!(xi>0&&xi<128)){alert('height must be > 0 and < 128');return;}
         var yi=parseInt(document.getElementById('yi').value);
-        if(!(yi>0&&yi<=128)){alert('width must be > 0 and <= 128');return;}
+        if(!(yi>0&&yi<128)){alert('width must be > 0 and < 128');return;}
         var ni=parseInt(document.getElementById('ni').value);
         if(!(ni>0&&ni<=xi*yi-9)){alert('number must be > 0 and <= height*width-9');return;}
         changeMap(xi,yi,ni);
@@ -315,6 +315,86 @@
         if(so.noezstart)EZS=false;
         document.oncontextmenu=function(e){e.preventDefault();};
         newMap();
+      }
+      function loadFromFile()
+      {
+        var input=document.createElement('input');
+        input.type='file';
+        input.accept='.dat';
+        input.onchange=function(e)
+        {
+          if(e.target.files.length<=0)return;
+          var reader=new FileReader();
+          reader.onload=fileLoaded;
+          reader.readAsArrayBuffer(e.target.files[0]);
+        }
+        input.click();
+      }
+      function fileLoaded(e)
+      {
+        var data=new Int8Array(e.target.result);
+        var x;
+        var y;
+        if(data.length<2||(x=data[0])<=0||(y=data[1])<=0||data.length-2!=x*y)return alert('error format of file');
+        var index=2;
+        var n=0;
+        var booo=new Array(x+2);
+        for(var i=0;i<x+2;i++)
+        {
+          booo[i]=new Array(y+2);
+          for(var j=0;j<y+2;j++)booo[i][j]=false;
+          if(i>0&&i<=x)
+          {
+            for(var j=1;j<=y;j++)
+            {
+              if(data[index]&1)
+              {
+                booo[i][j]=true;
+                n++;
+              }
+              index++;
+            }
+          }
+        }
+        if(n<=0||n>x*y-9)return alert('error format of file');
+        changeMap(x,y,n);
+        first=false;
+        boo=booo;
+        index=2;
+        for(var i=1;i<=x;i++)
+        {
+          for(var j=1;j<=y;j++)
+          {
+            if(data[index]==4)click(i,j,{button:0});
+            else if(data[index]&2)click(i,j,{button:2});
+            index++;
+          }
+        }
+      }
+      function saveToFile()
+      {
+        if(ended||first)return;
+        var data=new Int8Array(X*Y+2);
+        data[0]=X;
+        data[1]=Y;
+        var index=2;
+        for(var x=1;x<=X;x++)
+        {
+          for(var y=1;y<=Y;y++)
+          {
+            if(dis[x][y]==-1)data[index]=2;
+            else if(dis[x][y]>0)data[index]=4;
+            if(boo[x][y])data[index]|=1;
+            index++;
+          }
+        }
+        var blob=new Blob([data.buffer],{type:'application/octet-stream'});
+        var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');
+        a.href=url;
+        a.download='save.dat';
+        a.click();
+        URL.revokeObjectURL(url);
       }
     </script>
     <style>
@@ -489,6 +569,10 @@
           <input id="yi" type="number"></input>
           <span>number:</span>
           <input id="ni" type="number"></input>
+        </div>
+        <div class="ditem">
+          <button onclick="loadFromFile()">load from file...</button>
+          <button onclick="saveToFile()">save to file...</button>
         </div>
       </div>
     </div>
